@@ -7,11 +7,18 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
     <script src="wui.js"></script>
+    <script src="jquery-3.2.1.js"></script>
 </head>
 
 <body>
     <script>
-        console.log(spring)
+        var date1 = new Date()
+        var arr = ['me', 'you', 'she']
+        console.log(spring.type(date1))
+        console.log($.type(date1))
+        spring.each(arr, (item) => {
+            console.log('spring each: ', item)
+        })
     </script>
 </body>
 
