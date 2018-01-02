@@ -34,7 +34,7 @@
             i = 1,
             length = arguments.length,
             deep = false;
-        // 默然的false , true深拷贝
+        // 默认false , true深拷贝
         if (typeof target === "boolean") {
             deep = target;
             target = arguments[i] || {};
@@ -174,6 +174,9 @@
         isPlainObject: function(obj) {
             return this.isObject(obj) && !this.isWindow(obj) && getProto(obj) === Object.prototype
         },
+        isObject: function(obj) {
+            return this.type(obj) === 'object'
+        },
         /**
          * @param 是否可迭代
          */
@@ -201,7 +204,63 @@
          * 只有一个参数对象时,会给spring扩展一个属性
          */
         extend: function() {
-            return Spring.extend.call(this)
+            var options, name, src, copy, copyIsArray, clone,
+                target = arguments[0] || {},
+                i = 1,
+                length = arguments.length,
+                deep = false;
+            // 默认false , true深拷贝
+            if (typeof target === "boolean") {
+                deep = target;
+                target = arguments[i] || {};
+                i++;
+            }
+
+            if (typeof target !== "object" && !this.isFunction(target)) {
+                target = {};
+            }
+            // 是有一个参数时, 挂载到框架上
+            if (i === length) {
+                target = this;
+                i--;
+            }
+
+            for (; i < length; i++) {
+
+                if ((options = arguments[i]) != null) {
+
+                    for (name in options) {
+                        src = target[name];
+                        copy = options[name];
+
+                        if (target === copy) {
+                            continue;
+                        }
+
+                        if (deep && copy && (this.isPlainObject(copy) ||
+                                (copyIsArray = Array.isArray(copy)))) {
+
+                            if (copyIsArray) {
+                                copyIsArray = false;
+                                clone = src && Array.isArray(src) ? src : [];
+
+                            } else {
+                                clone = src && this.isPlainObject(src) ? src : {};
+                            }
+
+                            // Never move original objects, clone them
+                            target[name] = this.extend(deep, clone, copy);
+
+                            // Don't bring in undefined values
+                        } else if (copy !== undefined) {
+                            target[name] = copy;
+                        }
+                    }
+                }
+            }
+
+            // Return the modified object
+            return target;
         },
         trim: function(text) {
             return text == null ?
