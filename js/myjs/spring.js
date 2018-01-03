@@ -165,6 +165,7 @@
             }
             return target
         },
+      
         isMobile: function() {
             var regexp = /(android|os) (\d{1,}(\.|\_)\d{1,})/
             return regexp.test(this.userAgent())
