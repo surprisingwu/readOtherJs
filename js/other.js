@@ -1,18 +1,4 @@
-(function(global, factory) {
-    "use strict";
-    if (typeof module === "object" && typeof module.exports === "object") {
-        module.exports = global.document ?
-            factory(global, true) :
-            function(w) {
-                if (!w.document) {
-                    throw new Error("jQuery requires a window with a document");
-                }
-                return factory(w);
-            };
-    } else {
-        factory(global);
-    }
-})(typeof window !== "undefined" ? window : this, function(window, noGlobal) {
+(function() {
     var root = this;
     var previousUnderscore = root._;
     var ArrayProto = Array.prototype,
@@ -269,19 +255,6 @@
                 return "";
             }
             return result[1];
-        },
-        // 深拷贝
-        deepCopy: function(source, target) {
-            var target = target || {};　　　　
-            for (var i in source) {　　　　　　
-                if (typeof source[i] === 'object') {　　　　　　　　
-                    target[i] = (source[i].constructor === Array) ? [] : {};　　　　　　　　
-                    deepCopy(source[i], target[i]);　　　　　　
-                } else {　　　　　　　　　
-                    target[i] = source[i];　　　　　　
-                }　　　　
-            }　　　　
-            return target;
         }
     })
     _.each("Boolean Number String Function Array Date RegExp Object Error Symbol".split(" "),
@@ -295,12 +268,26 @@
         }
     }
     var extend = function(Child, Parent) {
-        var F = function() {};　　　　
-        F.prototype = Parent.prototype;　　　　
-        Child.prototype = new F();　　　　
-        Child.prototype.constructor = Child;　　　　
-        Child.uber = Parent.prototype;
+            var F = function() {};　　　　
+            F.prototype = Parent.prototype;　　　　
+            Child.prototype = new F();　　　　
+            Child.prototype.constructor = Child;　　　　
+            Child.uber = Parent.prototype;
+        }
+        // 深拷贝
+    var deepCopy = function(source, target) {　
+        var target = target || {};　　　　
+        for (var i in source) {　　　　　　
+            if (typeof source[i] === 'object') {　　　　　　　　
+                target[i] = (source[i].constructor === Array) ? [] : {};　　　　　　　　
+                deepCopy(source[i], target[i]);　　　　　　
+            } else {　　　　　　　　　
+                target[i] = source[i];　　　　　　
+            }　　　　
+        }　　　　
+        return target;
     }
+
 
     //  是否是一个可迭代的类数组
     function isArrayLike(obj) {
@@ -347,10 +334,22 @@
     }
 
 
-    // 向外暴露
-    window._ = _
-    if (!noGlobal) {
-        window._ = window._ = _;
+
+    // Extracts the result from a wrapped and chained object.
+    _.prototype.value = function() {
+        return this._wrapped;
+    };
+
+    // Provide unwrapping proxy for some methods used in engine operations
+    // such as arithmetic and JSON stringification.
+    _.prototype.valueOf = _.prototype.toJSON = _.prototype.value;
+
+    _.prototype.toString = function() {
+        return '' + this._wrapped;
+    };
+    if (typeof define === 'function' && define.amd) {
+        define('underscore', [], function() {
+            return _;
+        });
     }
-    return _
-})
+}.call(this));

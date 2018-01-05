@@ -9,21 +9,69 @@
     <script src="js/index.js"></script>
     <script src="js/others/jquery-3.2.1.js"></script>
     <script src="js/myjs/wui.js"></script>
+    <script src="js/other.js"></script>
+
 </head>
 
 <body>
+    <div class="container">
+        <input type="text">
+    </div>
     <script>
-        var arr = [32, 33, 4342, {
-            id: 1
-        }, 34, 412, {
-            id: 2
-        }, 1231, 56, 678, 878]
-        console.log(spring.find(arr, function() {
-            return !!item.id
-        }))
-        console.log(spring.findIndex(arr, function() {
-            return !!item.id
-        }))
+        class Father {
+            constructor(name, age) {
+                this.name = name
+                this.age = age
+            }
+            sayName() {
+                console.log(this.name)
+            }
+            static sayAge() {
+                console.log(this.age)
+            }
+        }
+
+        class Child extends Father {
+            constructor(...args) {
+                super(...args)
+            }
+            sayName() {
+                super.sayName()
+            }
+        }
+        // 关于浅复制和深复制
+        var obj1 = {
+            a: 1
+        }
+        var obj2 = {
+            b: 2
+        }
+        var obj = {
+            a: obj1,
+            b: obj2,
+            c: 3
+        }
+        var demo = {}
+            // for (var key in obj) {
+            //     demo[key] = obj[key]
+            // }
+        function deepCopy(source, target) {　
+            var target = target || {};　　　　
+            for (var i in source) {　　　　　　
+                if (typeof source[i] === 'object') {　　　　　　　　
+                    target[i] = (source[i].constructor === Array) ? [] : {};　　　　　　　　
+                    deepCopy(source[i], target[i]);　　　　　　
+                } else {　　　　　　　　　
+                    target[i] = source[i];　　　　　　
+                }　　　　
+            }　　　　
+            return target;
+        }
+        deepCopy(obj, demo)
+        var demo3 = {
+            value: 15
+        }
+        console.log(demo3)
     </script>
 </body>
 
