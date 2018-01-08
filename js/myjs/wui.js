@@ -13,51 +13,32 @@
         factory(global);
     }
 })(typeof window !== "undefined" ? window : this, function(window, noGlobal) {
-    var root = this;
-    var previousUnderscore = root._;
-    var ArrayProto = Array.prototype,
-        ObjProto = Object.prototype,
-        FuncProto = Function.prototype;
-
-    var
-        push = ArrayProto.push,
-        slice = ArrayProto.slice,
-        toString = ObjProto.toString,
-        hasOwnProperty = ObjProto.hasOwnProperty;
-
-    var
-        nativeIsArray = Array.isArray,
-        nativeKeys = Object.keys,
-        nativeBind = FuncProto.bind,
-        nativeCreate = Object.create;
+    var arr = [];
+    var getProto = Object.getPrototypeOf;
+    var slice = arr.slice;
+    var concat = arr.concat;
+    var push = arr.push;
+    var indexOf = arr.indexOf;
     var class2type = {};
     var toString = class2type.toString;
+    var hasOwn = class2type.hasOwnProperty;
+    var fnToString = hasOwn.toString;
+    var ObjectFunctionString = fnToString.call(Object);
 
-
-
-    var Ctor = function() {};
-
+    // 直接使用_,可以使用一些工具类的方法,传参时,可以使用一些组件
     var _ = function(obj) {
+        // @todo 待修改
         if (obj instanceof _) return obj;
         if (!(this instanceof _)) return new _(obj);
         this._wrapped = obj;
     };
 
-
-    if (typeof exports !== 'undefined') {
-        if (typeof module !== 'undefined' && module.exports) {
-            exports = module.exports = _;
-        }
-        exports._ = _;
-    } else {
-        root._ = _;
-    }
-
     // Current version.
-    _.VERSION = '0.0.1';
+    var VERSION = '0.0.1';
+    _.version = VERSION
     _.prototype = {
         constructor: _,
-        version: _.VERSION,
+        version: _.version,
     }
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
@@ -134,7 +115,16 @@
                 !isNaN(obj - parseFloat(obj));
         },
         isPlainObject: function(obj) {
-            return this.isObject(obj) && !this.isWindow(obj) && getProto(obj) === Object.prototype
+            var proto, Ctor;
+            if (!obj || toString.call(obj) !== "[object Object]") {
+                return false;
+            }
+            proto = getProto(obj);
+            if (!proto) {
+                return true;
+            }
+            Ctor = hasOwn.call(proto, "constructor") && proto.constructor;
+            return typeof Ctor === "function" && fnToString.call(Ctor) === ObjectFunctionString;
         },
         isObject: function(obj) {
             return this.type(obj) === 'object'
@@ -179,7 +169,7 @@
         // 转化成数组
         toArray: function(obj) {
             if (this.isArrayLike(obj)) {
-                return array.slice.call(obj)
+                return slice.call(obj)
             }
         },
         // 遍历可迭代对象(数组,伪数组,set,map)
@@ -334,18 +324,47 @@
     }();
     // 返回对应的兼容样式
     _.prefixStyle = function(style) {
-        if (vendor === false) {
-            return false;
-        }
-        if (vendor === 'standard') {
-            if (style === 'transitionEnd') {
-                return 'transitionend';
+            if (vendor === false) {
+                return false;
             }
-            return style;
+            if (vendor === 'standard') {
+                if (style === 'transitionEnd') {
+                    return 'transitionend';
+                }
+                return style;
+            }
+            return vendor + style.charAt(0).toUpperCase() + style.substr(1);
         }
-        return vendor + style.charAt(0).toUpperCase() + style.substr(1);
-    }
+        // 和原生进行交互的API
+    _.extend({
+        /**
+         * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
+         * success: 成功的回调
+         * error: 失败的回调(超时也走这个逻辑)
+         */
+        // params: {transtype: str, data: {},success:fn,error:fn}
+        openAlbum: function(options, success, error) {
+            var params;
+            if (_.isFunction(options)) {
+                error = success
+                success = options
+                options = {}
+            }
 
+        },
+        /**
+         * @param  参数和openAlbun
+         */
+        openCamara: function(options, success, error) {
+            var params;
+            if (_.isFunction(options)) {
+                error = success
+                success = options
+                options = {}
+            }
+        },
+        callNative: function() {}
+    })
 
     // 向外暴露
     window._ = _

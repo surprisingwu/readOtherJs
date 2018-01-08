@@ -235,8 +235,7 @@
                     }
 
                     // Recurse if we're merging plain objects or arrays
-                    if (deep && copy && (jQuery.isPlainObject(copy) ||
-                            (copyIsArray = Array.isArray(copy)))) {
+                    if (deep && copy && (jQuery.isPlainObject(copy) || (copyIsArray = Array.isArray(copy)))) {
 
                         if (copyIsArray) {
                             copyIsArray = false;

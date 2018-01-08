@@ -165,7 +165,7 @@
             }
             return target
         },
-      
+
         isMobile: function() {
             var regexp = /(android|os) (\d{1,}(\.|\_)\d{1,})/
             return regexp.test(this.userAgent())
@@ -437,7 +437,8 @@
             this.callServiceNative(params, this._checkAttribute(settings, 'async', 'false'))
         },
         // options:{callback:fn,error:fn[,quality:str,maxWidth:str,maxHeight:str]}
-        openalbum: function(settings) {
+        // {}, callback, 还有
+        openAlbum: function(settings) {
             var params = {
                 params: {
                     transtype: 'openalbum',
@@ -520,7 +521,7 @@
                 }
             })
         },
-        // 监听物理返回键,  传一个回调
+        // 监听物理返回键, 传一个回调
         onWatchBackBtn: function(callback) {
             document.addEventListener("deviceready", function() {
                 document.addEventListener("backbutton", function() {

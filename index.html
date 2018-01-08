@@ -14,64 +14,16 @@
 </head>
 
 <body>
-    <div class="container">
-        <input type="text">
+    <div>
+        <span>demo1</span>
+    </div>
+    <div>
+        <span>demo2</span>
     </div>
     <script>
-        class Father {
-            constructor(name, age) {
-                this.name = name
-                this.age = age
-            }
-            sayName() {
-                console.log(this.name)
-            }
-            static sayAge() {
-                console.log(this.age)
-            }
-        }
-
-        class Child extends Father {
-            constructor(...args) {
-                super(...args)
-            }
-            sayName() {
-                super.sayName()
-            }
-        }
-        // 关于浅复制和深复制
-        var obj1 = {
-            a: 1
-        }
-        var obj2 = {
-            b: 2
-        }
-        var obj = {
-            a: obj1,
-            b: obj2,
-            c: 3
-        }
-        var demo = {}
-            // for (var key in obj) {
-            //     demo[key] = obj[key]
-            // }
-        function deepCopy(source, target) {　
-            var target = target || {};　　　　
-            for (var i in source) {　　　　　　
-                if (typeof source[i] === 'object') {　　　　　　　　
-                    target[i] = (source[i].constructor === Array) ? [] : {};　　　　　　　　
-                    deepCopy(source[i], target[i]);　　　　　　
-                } else {　　　　　　　　　
-                    target[i] = source[i];　　　　　　
-                }　　　　
-            }　　　　
-            return target;
-        }
-        deepCopy(obj, demo)
-        var demo3 = {
-            value: 15
-        }
-        console.log(demo3)
+        var arr1 = [1, 2, 23]
+        $.makeArray([2, 3], arr1)
+        console.log(arr1)
     </script>
 </body>
 
