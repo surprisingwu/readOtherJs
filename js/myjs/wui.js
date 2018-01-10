@@ -24,6 +24,7 @@
     var hasOwn = class2type.hasOwnProperty;
     var fnToString = hasOwn.toString;
     var ObjectFunctionString = fnToString.call(Object);
+    var AJAX_TIME_OUT = 20000; // 单位毫秒
 
     // 直接使用_,可以使用一些工具类的方法,传参时,可以使用一些组件
     var _ = function(obj) {
@@ -335,41 +336,370 @@
             }
             return vendor + style.charAt(0).toUpperCase() + style.substr(1);
         }
-        // 和原生进行交互的API
+        // ajax模块
+    var ajax = (function() {
+        /**
+         * 
+         * @param {*json} options {baseUrl:'',} 
+         */
+        function ajax(options) {
+            var methods = ['get', 'post', 'put', 'delete']
+            options = options || {}
+            options.baseUrl = options.baseUrl || ''
+            if (options.method && options.url) {
+                return xhrConnection(
+                    options.method,
+                    options.baseUrl + options.url,
+                    maybeData(options.data),
+                    options
+                )
+            }
+            return methods.reduce(function(acc, method) {
+                acc[method] = function(url, data) {
+                    return xhrConnection(
+                        method,
+                        options.baseUrl + url,
+                        maybeData(data),
+                        options
+                    )
+                }
+                return acc
+            }, {})
+        }
+
+        function maybeData(data) {
+            return data || null
+        }
+
+        function xhrConnection(type, url, data, options) {
+            var returnMethods = ['then', 'catch', 'always']
+            var promiseMethods = returnMethods.reduce(function(promise, method) {
+                promise[method] = function(callback) {
+                    promise[method] = callback
+                    return promise
+                }
+                return promise
+            }, {})
+            var xhr = new XMLHttpRequest()
+            var featuredUrl = getUrlWithData(url, data, type)
+            xhr.open(type, featuredUrl, true)
+            xhr.timeout = options.timeout || AJAX_TIME_OUT
+            xhr.withCredentials = options.hasOwnProperty('withCredentials')
+            setHeaders(xhr, options.headers)
+            xhr.addEventListener('readystatechange', ready(promiseMethods, xhr), false)
+            xhr.send(objectToQueryString(data))
+            promiseMethods.abort = function() {
+                return xhr.abort()
+            }
+            return promiseMethods
+        }
+
+        function getUrlWithData(url, data, type) {
+            if (type.toLowerCase() !== 'get' || !data) {
+                return url
+            }
+            var dataAsQueryString = objectToQueryString(data)
+            var queryStringSeparator = url.indexOf('?') > -1 ? '&' : '?'
+            return url + queryStringSeparator + dataAsQueryString
+        }
+
+        function setHeaders(xhr, headers) {
+            headers = headers || {}
+            if (!hasContentType(headers)) {
+                headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            }
+            Object.keys(headers).forEach(function(name) {
+                (headers[name] && xhr.setRequestHeader(name, headers[name]))
+            })
+        }
+
+        function hasContentType(headers) {
+            return Object.keys(headers).some(function(name) {
+                return name.toLowerCase() === 'content-type'
+            })
+        }
+
+        function ready(promiseMethods, xhr) {
+            return function handleReady() {
+                if (xhr.readyState === xhr.DONE) {
+                    xhr.removeEventListener('readystatechange', handleReady, false)
+                    promiseMethods.always.apply(promiseMethods, parseResponse(xhr))
+
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        promiseMethods.then.apply(promiseMethods, parseResponse(xhr))
+                    } else {
+                        promiseMethods.catch.apply(promiseMethods, parseResponse(xhr))
+                    }
+                }
+            }
+        }
+
+        function parseResponse(xhr) {
+            var result
+            try {
+                result = JSON.parse(xhr.responseText)
+            } catch (e) {
+                result = xhr.responseText
+            }
+            return [result, xhr]
+        }
+
+        function objectToQueryString(data) {
+            return isObject(data) ? getQueryString(data) : data
+        }
+
+        function isObject(data) {
+            return Object.prototype.toString.call(data) === '[object Object]'
+        }
+
+        function getQueryString(object) {
+            return Object.keys(object).reduce(function(acc, item) {
+                var prefix = !acc ? '' : acc + '&'
+                return prefix + encode(item) + '=' + encode(object[item])
+            }, '')
+        }
+
+        function encode(value) {
+            return encodeURIComponent(value)
+        }
+
+        return ajax
+    })()
+
+    // JSBridge 和原生进行交互 
+    var WebViewJavascriptBridge = (function(window) {
+        if (window.WebViewJavascriptBridge) {
+            return;
+        }
+
+        var messagingIframe;
+        var sendMessageQueue = [];
+        var receiveMessageQueue = [];
+        var messageHandlers = {};
+
+        var CUSTOM_PROTOCOL_SCHEME = 'yy';
+        var QUEUE_HAS_MESSAGE = '__QUEUE_MESSAGE__/';
+
+        var responseCallbacks = {};
+        var uniqueId = 1;
+
+        // 创建队列iframe
+        function _createQueueReadyIframe(doc) {
+            messagingIframe = doc.createElement('iframe');
+            messagingIframe.style.display = 'none';
+            doc.documentElement.appendChild(messagingIframe);
+        }
+
+        //set default messageHandler  初始化默认的消息线程
+        function init(messageHandler) {
+            if (WebViewJavascriptBridge._messageHandler) {
+                throw new Error('WebViewJavascriptBridge.init called twice');
+            }
+            WebViewJavascriptBridge._messageHandler = messageHandler;
+            var receivedMessages = receiveMessageQueue;
+            receiveMessageQueue = null;
+            for (var i = 0; i < receivedMessages.length; i++) {
+                _dispatchMessageFromNative(receivedMessages[i]);
+            }
+        }
+
+        // 发送
+        function send(data, responseCallback) {
+            _doSend({
+                data: data
+            }, responseCallback);
+        }
+
+        // 注册线程 往数组里面添加值
+        function registerHandler(handlerName, handler) {
+            messageHandlers[handlerName] = handler;
+        }
+        // 调用线程
+        function callHandler(handlerName, data, responseCallback) {
+            _doSend({
+                handlerName: handlerName,
+                data: data
+            }, responseCallback);
+        }
+
+        //sendMessage add message, 触发native处理 sendMessage
+        function _doSend(message, responseCallback) {
+            if (responseCallback) {
+                var callbackId = 'cb_' + (uniqueId++) + '_' + new Date().getTime();
+                responseCallbacks[callbackId] = responseCallback;
+                message.callbackId = callbackId;
+            }
+
+            sendMessageQueue.push(message);
+            messagingIframe.src = CUSTOM_PROTOCOL_SCHEME + '://' + QUEUE_HAS_MESSAGE;
+        }
+
+        // 提供给native调用,该函数作用:获取sendMessageQueue返回给native,由于android不能直接获取返回的内容,所以使用url shouldOverrideUrlLoading 的方式返回内容
+        function _fetchQueue() {
+            var messageQueueString = JSON.stringify(sendMessageQueue);
+            sendMessageQueue = [];
+            //android can't read directly the return data, so we can reload iframe src to communicate with java
+            messagingIframe.src = CUSTOM_PROTOCOL_SCHEME + '://return/_fetchQueue/' + encodeURIComponent(messageQueueString);
+        }
+
+        //提供给native使用,
+        function _dispatchMessageFromNative(messageJSON) {
+            setTimeout(function() {
+                var message = JSON.parse(messageJSON);
+                var responseCallback;
+                //java call finished, now need to call js callback function
+                if (message.responseId) {
+                    responseCallback = responseCallbacks[message.responseId];
+                    if (!responseCallback) {
+                        return;
+                    }
+                    responseCallback(message.responseData);
+                    delete responseCallbacks[message.responseId];
+                } else {
+                    //直接发送
+                    if (message.callbackId) {
+                        var callbackResponseId = message.callbackId;
+                        responseCallback = function(responseData) {
+                            _doSend({
+                                responseId: callbackResponseId,
+                                responseData: responseData
+                            });
+                        };
+                    }
+
+                    var handler = WebViewJavascriptBridge._messageHandler;
+                    if (message.handlerName) {
+                        handler = messageHandlers[message.handlerName];
+                    }
+                    //查找指定handler
+                    try {
+                        handler(message.data, responseCallback);
+                    } catch (exception) {
+                        if (typeof console != 'undefined') {
+                            console.log("WebViewJavascriptBridge: WARNING: javascript handler threw.", message, exception);
+                        }
+                    }
+                }
+            });
+        }
+
+        //提供给native调用,receiveMessageQueue 在会在页面加载完后赋值为null,所以
+        function _handleMessageFromNative(messageJSON) {
+            console.log(messageJSON);
+            if (receiveMessageQueue) {
+                receiveMessageQueue.push(messageJSON);
+            }
+            _dispatchMessageFromNative(messageJSON);
+
+        }
+
+        var WebViewJavascriptBridge = window.WebViewJavascriptBridge = {
+            init: init,
+            send: send,
+            registerHandler: registerHandler,
+            callHandler: callHandler,
+            _fetchQueue: _fetchQueue,
+            _handleMessageFromNative: _handleMessageFromNative
+        };
+
+        var doc = document;
+        _createQueueReadyIframe(doc);
+        var readyEvent = doc.createEvent('Events');
+        readyEvent.initEvent('WebViewJavascriptBridgeReady');
+        readyEvent.bridge = WebViewJavascriptBridge;
+        doc.dispatchEvent(readyEvent);
+
+        return WebViewJavascriptBridge
+    })(window);
+
+    // 交互部分
+    var ERR_OK = 0;
     _.extend({
-        /**
-         * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
-         * success: 成功的回调
-         * error: 失败的回调(超时也走这个逻辑)
-         */
-        // params: {transtype: str, data: {},success:fn,error:fn}
-        openAlbum: function(options, success, error) {
-            var params;
-            if (_.isFunction(options)) {
-                error = success
-                success = options
-                options = {}
-            }
+        callNative: function(type, json, success, error) {
+            WebViewJavascriptBridge.callHandler(
+                type, json,
+                function(responseData) {
+                    // {code:0,body:{}}
+                    if (responseData.code === ERR_OK) {
+                        sucess(responseData.body)
+                    } else {
+                        error(responseData)
+                    }
+                }
+            );
+        }
+    });
 
-        },
-        /**
-         * @param  参数和openAlbun
-         */
-        openCamara: function(options, success, error) {
-            var params;
-            if (_.isFunction(options)) {
-                error = success
-                success = options
-                options = {}
+    /**
+     * 打开相机和相册
+     * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
+     * success: 成功的回调
+     * error: 失败的回调(超时也走这个逻辑)
+     */
+    _.each(['openAlbum', 'openCamara'], function(method, index) {
+            _[method] = function(options, success, error) {
+                var defaultQuality = 0.85,
+                    flag = false;
+                if (_.isFunction(options)) {
+                    error = success
+                    success = options
+                    options = {}
+                }
+                if (!options.quality) {
+                    options.quality = defaultQuality
+                }
+                if (!options.isSync) {
+                    options.isSync = flag
+                }
+                _.callNative(method, options, success, error)
             }
-        },
-        callNative: function() {}
-    })
+        })
+        /**
+         * 获取用户信息、获取当前的地理位置、通过原生调取MA,扫描二维码
+         * @param {*json} options 传的参数 
+         * @param {*function} callback 回调
+         * @param {*function} error 回调
+         */
+    _.each(['getUserInfo', 'callService', 'getGeolocation', 'dimension'], function(item, i) {
+            _[item] = function(options, success, error) {
+                if (_.isFunction(options)) {
+                    error = success
+                    success = options
+                    options = {}
+                }
+                _.callNative(item, options, sucess, error)
+            }
+        })
+        /**
+         * 选人,department,select|picker,isSelectSingle,noLimit
+         * 选人和选机构 isSelectPeople
+         */
+    _.selectPeople = function(options, success, error) {
+        // 1.是否可以跨部门选人 isCrossDepts
+        // 2.同部门下选人上限（>=1） maxNumInSameDept
+        // 3.选人是否需要部门信息 needDeptInfo
+        // 4.给定特定的部门id(若特定部门id传错或者数据表中没有，那么规则？？登录用户的主部门id？)sepicalDept
+        // 5.给定已选的人员列表
+        var isCrossDepts = true, // 是否可以跨部门选人
+            chooseCaps = 1, // 同部门选人的上限
+            needDeptInfo = false, // 是否需要携带部门的信息
+            especialDept = ''; // 制定部门
+        if (_.isFunction(options)) {
+            error = success
+            success = options
+            options = {}
+        }
+        _.callNative('selectPeople', options, callback)
+    }
 
-    // 向外暴露
+
+
+
+
+    // 挂载到全局对象上
     window._ = _
     if (!noGlobal) {
-        window._ = window._ = _;
+        return window._ = _;
     }
     return _
 })
