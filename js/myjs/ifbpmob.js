@@ -24,7 +24,7 @@
     var hasOwn = class2type.hasOwnProperty;
     var fnToString = hasOwn.toString;
     var ObjectFunctionString = fnToString.call(Object);
-    var AJAX_TIME_OUT = 20000; // 单位毫秒
+    var AJAX_TIME_OUT = 15000; // 单位毫秒
 
     // 直接使用_,可以使用一些工具类的方法,传参时,可以使用一些组件
     var _ = function(obj) {
@@ -41,9 +41,9 @@
         constructor: _,
         version: _.version,
     }
-    /**对外扩展方法
-     * @param [boolean] 布尔值,默认的false, 浅复制
-     * @param [obj] 对象
+    /**
+     * @param [*boolean] 可传可不传,默认的false
+     * @param [*obj] 要添加的静态的方法(对象的形式)
      */
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
@@ -97,9 +97,7 @@
         return target;
     }
     _.extend({
-        /**
-         * @param [any] 检测数据的类型
-         */
+        // 检测数据的类型
         type: function(obj) {
             if (obj == null) {
                 return obj + "";
@@ -110,7 +108,7 @@
                 typeof obj;
         },
         isFunction: function(obj) {
-            return toString.call(obj) === "[object Function]";
+            return this.type(obj) === "function";
         },
 
         isWindow: function(obj) {
@@ -122,9 +120,6 @@
             return (type === "number" || type === "string") &&
                 !isNaN(obj - parseFloat(obj));
         },
-        /**
-         * @param obj [object] 对象, 是否是原生的对象
-         */
         isPlainObject: function(obj) {
             var proto, Ctor;
             if (!obj || toString.call(obj) !== "[object Object]") {
@@ -148,14 +143,6 @@
                 return false;
             }
             return true;
-        },
-        isAndroid: function(){
-            var u = navigator.userAgent;
-            return u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
-        },
-        isIOS: function(){
-            var u = navigator.userAgent;
-            return !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
         },
         merge: function(first, second) {
             var len = +second.length,
@@ -236,10 +223,7 @@
             }
             return fmt;
         },
-        /**
-         * @param key [string] 保存的对应的key
-         * @param value [string] 保存的value
-         */
+        // 存储数据
         setStorage: function(key, value) {
             var saveObj = window.localStorage._saveObj_;
             if (!saveObj) {
@@ -250,10 +234,7 @@
             saveObj[key] = value;
             window.localStorage._saveObj_ = JSON.stringify(saveObj);
         },
-        /**
-         * @param key [string] 获取存储的对应的key的value值
-         * @param def  [string] 默认值
-         */
+        // 获取某一个key, 可以传一个默认值
         getStorage: function(key, def) {
             var saveObj = window.localStorage._saveObj_
             if (!saveObj) {
@@ -263,9 +244,7 @@
             var ret = saveObj[key]
             return ret || def
         },
-        /**
-         * @param key [string] 从存储中移除某一个key
-         */
+        // 从存储中移除某一个key
         removeStorageItem: function(key) {
             var saveObj = window.localStorage._saveObj_;
             if (saveObj) {
@@ -305,7 +284,6 @@
         function(name, i) {
             class2type["[object " + name + "]"] = name.toLowerCase();
         });
-
     //  是否是一个可迭代的类数组
     function isArrayLike(obj) {
         var length = !!obj && "length" in obj && obj.length,
@@ -400,6 +378,7 @@
             promiseMethods.abort = function() {
                 return xhr.abort()
             }
+            // @todo 有可能需要timeout事件和progress事件
             return promiseMethods
         }
 
@@ -474,131 +453,120 @@
 
         return ajax
     })()
-    // 和原生进行交互 
-    var setupWebViewJavascriptBridge = function(callback) {
-        if (_.isAndroid()) {
-            if (window.WebViewJavascriptBridge) {
-                callback(WebViewJavascriptBridge)
-            } else {
-                document.addEventListener(
-                    'WebViewJavascriptBridgeReady',
-                    function() {
-                        callback(WebViewJavascriptBridge)
-                    },
-                    false
-                );
-            }
-        } else {
-            if (window.WebViewJavascriptBridge) {
-                return callback(WebViewJavascriptBridge);
-            }
-            if (window.WVJBCallbacks) {
-                return window.WVJBCallbacks.push(callback);
-            }
-            window.WVJBCallbacks = [callback];
-            var WVJBIframe = document.createElement('iframe');
-            WVJBIframe.style.display = 'none';
-            WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
-            document.documentElement.appendChild(WVJBIframe);
-            setTimeout(function() {
-                document.documentElement.removeChild(WVJBIframe)
-            }, 0)
-        }
-    }
-    // 调取原生的方法
-var callNative = function(type, json, suc, err) {
-        setupWebViewJavascriptBridge(function(bridge) {
-            bridge.callHandler(
-                type, json,
-                function(responseData) {
-                    // @todo  根据原生返回的字段区分成功和失败,来调取相应的回调
-                    callback(responseData)
+    var setRequestParams = function(action, appid, params,controller) {
+        var params = {
+            "serviceid": "umCommonService",
+            "appcontext": {
+                "appid": appid,
+                "tabid": "",
+                "funcid": "",
+                "funcode": appid,
+                "userid": "",
+                "forelogin": "",
+                "token": "",
+                "pass": "",
+                "sessionid": "",
+                "devid": "C3474B8E-888D-4937-BDBA-025D8DAE3AE4",
+                "groupid": "",
+                "massotoken": "",
+                "user": ""
+            },
+            "servicecontext": {
+                "actionid": "",
+                "actions": action,
+                "viewid": controller,
+                "contextmapping": {
+                    "result": "result"
+                },
+                "params": params,
+                "actionname": action,
+                "callback": ""
+            },
+            "deviceinfo": {
+                "firmware": "",
+                "style": "ios",
+                "lang": "zh-CN",
+                "imsi": "",
+                "wfaddress": "C3474B8E-888D-4937-BDBA-025D8DAE3AE4",
+                "imei": "",
+                "appversion": "1",
+                "uuid": "C3474B8E-888D-4937-BDBA-025D8DAE3AE4",
+                "bluetooth": "",
+                "rom": "",
+                "resolution": "",
+                "name": "kl",
+                "wifi": "",
+                "mac": "C3474B8E-888D-4937-BDBA-025D8DAE3AE4",
+                "ram": "",
+                "model": "iPhone",
+                "osversion": "iphone",
+                "devid": "C3474B8E-888D-4937-BDBA-025D8DAE3AE4",
+                "mode": "kl",
+                "pushtoken": "",
+                "categroy": "iPhone",
+                "screensize": {
+                    "width": window.screen.width,
+                    "heigth": window.screen.height
                 }
-            );
-        })
-    }
-    // 本地注册一个方法,让原生来调
-var registerListener = function(name, callback) {
-    setupWebViewJavascriptBridge(function(bridge) {
-        bridge.registerHandler(
-            name,
-            function(data) {
-                callback(data)
             }
-        );
-    })
-}
+        };
+        return params
+    }
+    var handlerOptions = function(target,src) {
+        for (var k in target) {
+            if (!src[k]&&k!=='action'&&k!=='appid') {
+                src[k] = target[k]
+            }
+        }
+        return src
+    }
     /**
-     * 打开相机和相册
-     * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
-     * success: 成功的回调
-     * error: 失败的回调(超时也走这个逻辑)
+     * 
+     * @param {object} options {data: obj,action: str,appid: str,timeout: num, headers: obj} 
+     * @param {function} suc 
+     * @param {function} err 
      */
-    _.registerListener = function(name,callback){
-        if (typeof(name) === 'string'&&_.isFunction(callback)) {
-            registerListener(name,callback)
-        }
+   _.callUrl = function(options,suc,err) {
+    var action = options.action || 'handler',
+        appid = options.appid || 'test',
+        params = options.data || {};
+        this.controller = options.controller
+    var requestParams = setRequestParams(action,appid,params,options.controller)
+    var data = {
+        tip: 'none',
+        data: JSON.stringify(requestParams)
     }
-    _.each(['openAlbum', 'openCamara'], function(method, index) {
-            _[method] = function(options, success, error) {
-                var defaultQuality = 0.85,
-                    isCut = false,
-                    flag = false;
-                if (_.isFunction(options)) {
-                    error = success
-                    success = options
-                    options = {}
-                }
-                if (!options.quality) {
-                    options.quality = defaultQuality
-                }
-                if (!options.isSync) {
-                    options.isSync = flag
-                }
-                if(!options.isCut) {
-                    options.isCut = isCut
-                }
-                callNative(method, options,success, error)
-            }
-        })
-        /**
-         * 获取用户信息、获取当前的地理位置、通过原生调取MA,扫描二维码,退出app,监听物理返回键
-         * @param {*json} options 传的参数 
-         * @param {*function} callback 回调
-         * @param {*function} error 回调
-         */
-    _.each(['getUserInfo', 'callService', 'getGeolocation', 'dimension','exitApp','onWatchBackButton'], function(item, i) {
-            _[item] = function(options, success, error) {
-                if (_.isFunction(options)) {
-                    error = success
-                    success = options
-                    options = {}
-                }
-                callNative(item, options, success, error)
-            }
-        })
-    _.selectPeople = function(options, success, error) {
-        // 1.是否可以跨部门选人 isCrossDepts
-        // 2.同部门下选人上限（>=1） maxNumInSameDept
-        // 3.选人是否需要部门信息 needDeptInfo
-        // 4.给定特定的部门id(若特定部门id传错或者数据表中没有，那么规则？？登录用户的主部门id？)sepicalDept
-        // 5.给定已选的人员列表
-        var isCrossDepts = true, // 是否可以跨部门选人
-            chooseCaps = 1, // 同部门选人的上限
-            needDeptInfo = false, // 是否需要携带部门的信息
-            especialDept = ''; // 制定部门
-        if (_.isFunction(options)) {
-            error = success
-            success = options
-            options = {}
-        }
-        callNative('selectPeople', options, success, error)
+    var ajaxOpts = {
+        method: 'post',
+        data: data
     }
- 
+    ajaxOpts = handlerOptions(options, ajaxOpts)
+    if (suc||err) {
+        ajax(ajaxOpts).then(function(data){
+              if (suc) {
+                   suc(data)
+              } 
+          }).catch(function(e){
+              if (err) {
+                   err(e)
+              }       
+          })
+          return
+    }
+    return new Promise(function(resolve,reject){
+        ajax(ajaxOpts).then(function(data){
+        resolve(data)
+      }).catch(function(e){
+        reject(e)
+      })
+    })
+    
+   }
+
     // 挂载到全局对象上
-    window._ = _
+    window.ifbpm=window._ = _
     if (!noGlobal) {
-        return window._ = _;
+        return window.ifbpm=window._ = _
     }
-    return _
+    return ifbpm
 })

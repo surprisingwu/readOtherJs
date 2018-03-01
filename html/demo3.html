@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        header {
+            color: blueviolet;
+        }
+    </style>
+</head>
+
+<body>
+    <header data-title="怎么获取到的" style="font-size: 15px">
+        <h2 class="title f15">测试</h2>
+        <div class="opts">
+            <span class="text">
+                选项
+            </span>
+        </div>
+    </header>
+    <main>
+        <div>
+            我是内容区域
+        </div>
+    </main>
+    <button id="btn1">click to scrollIntoView</button>
+    <footer>
+        <div dir="rtl">
+            我是底部区域
+        </div>
+    </footer>
+</body>
+<script>
+    document.querySelector('.text').addEventListener('click', function() {
+        alert(1)
+    }, true)
+    document.querySelector('.opts').addEventListener('click', function() {
+        alert(2)
+    }, true)
+</script>
+
+</html>

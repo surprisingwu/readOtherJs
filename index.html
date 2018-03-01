@@ -6,29 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
-    <script src="js/index.js"></script>
-    <script src="js/others/jquery-3.2.1.js"></script>
-    <script src="js/myjs/wui.js"></script>
-
+    <script src="js/myjs/config.js"></script>
+    <script src="js/myjs/ifbpmob.js"></script>
 </head>
 
 <body>
     <script>
-        // 通过原生调取MA
-        _.callService({
-            controller: '', // 后台MA的controller
+        ifbpm.callUrl({
+            url: 'http://ifbpmob.yonyou.com:8030/umserver/core',
+            appid: 'library',
+            action: 'handler',
+            timeout: 15000,
+            headers: {
+
+            },
+            controller: 'com.ifbpmob.jrpt.controller.FileController',
             data: {
-                a: 1
-            }, // 传给后台的数据  
-        }, function(data) {
+                transtype: 'cataloglist',
+                catalog_id: ''
+            }
+        }).then(function(data) {
             console.log(data)
-        }, function(err) {
-            console.log(err)
-        })
-        _.getGeolocation({}, function(data) {
-            console.log(data)
-        }, function(err) {
-            console.log(err)
+        }).catch(function(e) {
+            alert(e)
         })
     </script>
 

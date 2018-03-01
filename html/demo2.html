@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <button id="btn1">js调用原生</button>
+    <script>
+        function isAndroid() {
+            var u = navigator.userAgent;
+            return u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
+        }
+        var setupWebViewJavascriptBridge = function(callback) {
+                if (isAndroid()) {
+                    if (window.WebViewJavascriptBridge) {
+                        callback(WebViewJavascriptBridge)
+                    } else {
+                        document.addEventListener(
+                            'WebViewJavascriptBridgeReady',
+                            function() {
+                                callback(WebViewJavascriptBridge)
+                            },
+                            false
+                        );
+                    }
+                } else {
+                    if (window.WebViewJavascriptBridge) {
+                        return callback(WebViewJavascriptBridge);
+                    }
+                    if (window.WVJBCallbacks) {
+                        return window.WVJBCallbacks.push(callback);
+                    }
+                    window.WVJBCallbacks = [callback];
+                    var WVJBIframe = document.createElement('iframe');
+                    WVJBIframe.style.display = 'none';
+                    WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
+                    document.documentElement.appendChild(WVJBIframe);
+                    setTimeout(function() {
+                        document.documentElement.removeChild(WVJBIframe)
+                    }, 0)
+                }
+            }
+            // 调取原生的方法
+        var callNative = function(type, json, callback) {
+                setupWebViewJavascriptBridge(function(bridge) {
+                    bridge.callHandler(
+                        type, json,
+                        function(responseData) {
+                            callback(responseData)
+                        }
+                    );
+                })
+            }
+            // 本地注册一个方法,让原生来调
+        var registerListener = function(name, callback) {
+            setupWebViewJavascriptBridge(function(bridge) {
+                bridge.registerHandler(
+                    name,
+                    function(data) {
+                        callback(data)
+                    }
+                );
+            })
+        }
+        document.getElementById('btn1').addEventListener('click', function() {
+            callNative('exit_back', {}, function(data) {
+                alert('success')
+            })
+        })
+        registerListener('userInfo', function(data) {
+            alert(JSON.stringify(data))
+        })
+    </script>
+</body>
+
+</html>

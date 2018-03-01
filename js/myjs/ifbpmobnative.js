@@ -41,9 +41,9 @@
         constructor: _,
         version: _.version,
     }
-    /**对外扩展方法
-     * @param [boolean] 布尔值,默认的false, 浅复制
-     * @param [obj] 对象
+    /**
+     * @param [*boolean] 可传可不传,默认的false
+     * @param [*obj] 要添加的静态的方法(对象的形式)
      */
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
@@ -97,9 +97,7 @@
         return target;
     }
     _.extend({
-        /**
-         * @param [any] 检测数据的类型
-         */
+        // 检测数据的类型
         type: function(obj) {
             if (obj == null) {
                 return obj + "";
@@ -110,7 +108,7 @@
                 typeof obj;
         },
         isFunction: function(obj) {
-            return toString.call(obj) === "[object Function]";
+            return this.type(obj) === "function";
         },
 
         isWindow: function(obj) {
@@ -122,9 +120,6 @@
             return (type === "number" || type === "string") &&
                 !isNaN(obj - parseFloat(obj));
         },
-        /**
-         * @param obj [object] 对象, 是否是原生的对象
-         */
         isPlainObject: function(obj) {
             var proto, Ctor;
             if (!obj || toString.call(obj) !== "[object Object]") {
@@ -148,14 +143,6 @@
                 return false;
             }
             return true;
-        },
-        isAndroid: function(){
-            var u = navigator.userAgent;
-            return u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
-        },
-        isIOS: function(){
-            var u = navigator.userAgent;
-            return !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
         },
         merge: function(first, second) {
             var len = +second.length,
@@ -236,10 +223,7 @@
             }
             return fmt;
         },
-        /**
-         * @param key [string] 保存的对应的key
-         * @param value [string] 保存的value
-         */
+        // 存储数据
         setStorage: function(key, value) {
             var saveObj = window.localStorage._saveObj_;
             if (!saveObj) {
@@ -250,10 +234,7 @@
             saveObj[key] = value;
             window.localStorage._saveObj_ = JSON.stringify(saveObj);
         },
-        /**
-         * @param key [string] 获取存储的对应的key的value值
-         * @param def  [string] 默认值
-         */
+        // 获取某一个key, 可以传一个默认值
         getStorage: function(key, def) {
             var saveObj = window.localStorage._saveObj_
             if (!saveObj) {
@@ -263,9 +244,7 @@
             var ret = saveObj[key]
             return ret || def
         },
-        /**
-         * @param key [string] 从存储中移除某一个key
-         */
+        // 从存储中移除某一个key
         removeStorageItem: function(key) {
             var saveObj = window.localStorage._saveObj_;
             if (saveObj) {
@@ -305,6 +284,19 @@
         function(name, i) {
             class2type["[object " + name + "]"] = name.toLowerCase();
         });
+
+    // var _checkObj = function(type) {
+    //     return function(obj) {
+    //         return Object.prototype.toString.call(obj) === '[object ' + type + ']'
+    //     }
+    // }
+    // var extend = function(Child, Parent) {
+    //     var F = function() {};　　　　
+    //     F.prototype = Parent.prototype;　　　　
+    //     Child.prototype = new F();　　　　
+    //     Child.prototype.constructor = Child;　　　　
+    //     Child.uber = Parent.prototype;
+    // }
 
     //  是否是一个可迭代的类数组
     function isArrayLike(obj) {
@@ -474,71 +466,185 @@
 
         return ajax
     })()
-    // 和原生进行交互 
-    var setupWebViewJavascriptBridge = function(callback) {
-        if (_.isAndroid()) {
-            if (window.WebViewJavascriptBridge) {
-                callback(WebViewJavascriptBridge)
-            } else {
-                document.addEventListener(
-                    'WebViewJavascriptBridgeReady',
-                    function() {
-                        callback(WebViewJavascriptBridge)
-                    },
-                    false
-                );
-            }
-        } else {
-            if (window.WebViewJavascriptBridge) {
-                return callback(WebViewJavascriptBridge);
-            }
-            if (window.WVJBCallbacks) {
-                return window.WVJBCallbacks.push(callback);
-            }
-            window.WVJBCallbacks = [callback];
-            var WVJBIframe = document.createElement('iframe');
-            WVJBIframe.style.display = 'none';
-            WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
-            document.documentElement.appendChild(WVJBIframe);
-            setTimeout(function() {
-                document.documentElement.removeChild(WVJBIframe)
-            }, 0)
+
+    // JSBridge 和原生进行交互 
+    var WebViewJavascriptBridge = (function(window) {
+        if (window.WebViewJavascriptBridge) {
+            return;
         }
-    }
-    // 调取原生的方法
-var callNative = function(type, json, suc, err) {
-        setupWebViewJavascriptBridge(function(bridge) {
-            bridge.callHandler(
-                type, json,
-                function(responseData) {
-                    // @todo  根据原生返回的字段区分成功和失败,来调取相应的回调
-                    callback(responseData)
+
+        var messagingIframe;
+        var sendMessageQueue = [];
+        var receiveMessageQueue = [];
+        var messageHandlers = {};
+
+        var CUSTOM_PROTOCOL_SCHEME = 'yy';
+        var QUEUE_HAS_MESSAGE = '__QUEUE_MESSAGE__/';
+
+        var responseCallbacks = {};
+        var uniqueId = 1;
+
+        // 创建队列iframe
+        function _createQueueReadyIframe(doc) {
+            messagingIframe = doc.createElement('iframe');
+            messagingIframe.style.display = 'none';
+            doc.documentElement.appendChild(messagingIframe);
+        }
+
+        // set default messageHandler  初始化默认的消息线程
+        function init(messageHandler) {
+            if (WebViewJavascriptBridge._messageHandler) {
+                throw new Error('WebViewJavascriptBridge.init called twice');
+            }
+            WebViewJavascriptBridge._messageHandler = messageHandler;
+            var receivedMessages = receiveMessageQueue;
+            receiveMessageQueue = null;
+            for (var i = 0; i < receivedMessages.length; i++) {
+                _dispatchMessageFromNative(receivedMessages[i]);
+            }
+        }
+
+        // 发送
+        function send(data, responseCallback) {
+            _doSend({
+                data: data
+            }, responseCallback);
+        }
+
+        // 注册线程 往数组里面添加值
+        function registerHandler(handlerName, handler) {
+            messageHandlers[handlerName] = handler;
+        }
+        // 调用线程
+        function callHandler(handlerName, data, responseCallback) {
+            _doSend({
+                handlerName: handlerName,
+                data: data
+            }, responseCallback);
+        }
+
+        // sendMessage add message, 触发native处理 sendMessage
+        function _doSend(message, responseCallback) {
+            if (responseCallback) {
+                var callbackId = 'cb_' + (uniqueId++) + '_' + new Date().getTime();
+                responseCallbacks[callbackId] = responseCallback;
+                message.callbackId = callbackId;
+            }
+
+            sendMessageQueue.push(message);
+            messagingIframe.src = CUSTOM_PROTOCOL_SCHEME + '://' + QUEUE_HAS_MESSAGE;
+        }
+
+        // 提供给native调用,该函数作用:获取sendMessageQueue返回给native,由于android不能直接获取返回的内容,所以使用url shouldOverrideUrlLoading 的方式返回内容
+        function _fetchQueue() {
+            var messageQueueString = JSON.stringify(sendMessageQueue);
+            sendMessageQueue = [];
+            //android can't read directly the return data, so we can reload iframe src to communicate with java
+            messagingIframe.src = CUSTOM_PROTOCOL_SCHEME + '://return/_fetchQueue/' + encodeURIComponent(messageQueueString);
+        }
+
+        //提供给native使用,
+        function _dispatchMessageFromNative(messageJSON) {
+            setTimeout(function() {
+                var message = JSON.parse(messageJSON);
+                var responseCallback;
+                //java call finished, now need to call js callback function
+                if (message.responseId) {
+                    responseCallback = responseCallbacks[message.responseId];
+                    if (!responseCallback) {
+                        return;
+                    }
+                    responseCallback(message.responseData);
+                    delete responseCallbacks[message.responseId];
+                } else {
+                    //直接发送
+                    if (message.callbackId) {
+                        var callbackResponseId = message.callbackId;
+                        responseCallback = function(responseData) {
+                            _doSend({
+                                responseId: callbackResponseId,
+                                responseData: responseData
+                            });
+                        };
+                    }
+
+                    var handler = WebViewJavascriptBridge._messageHandler;
+                    if (message.handlerName) {
+                        handler = messageHandlers[message.handlerName];
+                    }
+                    //查找指定handler
+                    try {
+                        handler(message.data, responseCallback);
+                    } catch (exception) {
+                        if (typeof console != 'undefined') {
+                            console.log("WebViewJavascriptBridge: WARNING: javascript handler threw.", message, exception);
+                        }
+                    }
                 }
-            );
-        })
-    }
-    // 本地注册一个方法,让原生来调
-var registerListener = function(name, callback) {
-    setupWebViewJavascriptBridge(function(bridge) {
-        bridge.registerHandler(
-            name,
-            function(data) {
-                callback(data)
+            });
+        }
+
+        // 提供给native调用,receiveMessageQueue 在会在页面加载完后赋值为null,所以
+        function _handleMessageFromNative(messageJSON) {
+            console.log(messageJSON);
+            if (receiveMessageQueue) {
+                receiveMessageQueue.push(messageJSON);
+            }
+            _dispatchMessageFromNative(messageJSON);
+
+        }
+
+        var WebViewJavascriptBridge = window.WebViewJavascriptBridge = {
+            init: init,
+            send: send,
+            registerHandler: registerHandler,
+            callHandler: callHandler,
+            _fetchQueue: _fetchQueue,
+            _handleMessageFromNative: _handleMessageFromNative
+        };
+
+        var doc = document;
+        _createQueueReadyIframe(doc);
+        var readyEvent = doc.createEvent('Events');
+        readyEvent.initEvent('WebViewJavascriptBridgeReady');
+        readyEvent.bridge = WebViewJavascriptBridge;
+        doc.dispatchEvent(readyEvent);
+
+        return WebViewJavascriptBridge
+    })(window);
+
+    // 交互部分
+    var ERR_OK = 0;
+    // 调取原生的方法
+    var callNative = function(type, json, success, error) {
+        WebViewJavascriptBridge.callHandler(
+            type, json,
+            function(responseData) {
+                alert('原生成功的执行H5的回调')
+                // {code:0,body:{}}
+                if (responseData.code === ERR_OK) {
+                    sucess(responseData.body)
+                } else {
+                    if (error) {
+                        error(responseData)
+                    }              
+                }
             }
         );
-    })
-}
+    }
+    // 本地注册一个方法,让原生来调
+    var registerListener = function(name,callback){
+        WebViewJavascriptBridge.registerHandler(name, function(data, callback) {
+           callback(data)
+        });
+    }
+
     /**
      * 打开相机和相册
      * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
      * success: 成功的回调
      * error: 失败的回调(超时也走这个逻辑)
      */
-    _.registerListener = function(name,callback){
-        if (typeof(name) === 'string'&&_.isFunction(callback)) {
-            registerListener(name,callback)
-        }
-    }
     _.each(['openAlbum', 'openCamara'], function(method, index) {
             _[method] = function(options, success, error) {
                 var defaultQuality = 0.85,
@@ -558,7 +664,7 @@ var registerListener = function(name, callback) {
                 if(!options.isCut) {
                     options.isCut = isCut
                 }
-                callNative(method, options,success, error)
+                callNative(method, options, success, error)
             }
         })
         /**
@@ -574,7 +680,7 @@ var registerListener = function(name, callback) {
                     success = options
                     options = {}
                 }
-                callNative(item, options, success, error)
+                callNative(item, options, sucess, error)
             }
         })
     _.selectPeople = function(options, success, error) {
@@ -592,9 +698,9 @@ var registerListener = function(name, callback) {
             success = options
             options = {}
         }
-        callNative('selectPeople', options, success, error)
+        callNative('selectPeople', options, callback)
     }
- 
+   // @todo 调取原生打开附件
     // 挂载到全局对象上
     window._ = _
     if (!noGlobal) {

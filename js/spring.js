@@ -41,10 +41,6 @@
         constructor: _,
         version: _.version,
     }
-    /**对外扩展方法
-     * @param [boolean] 布尔值,默认的false, 浅复制
-     * @param [obj] 对象
-     */
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
             target = arguments[0] || {},
@@ -97,9 +93,6 @@
         return target;
     }
     _.extend({
-        /**
-         * @param [any] 检测数据的类型
-         */
         type: function(obj) {
             if (obj == null) {
                 return obj + "";
@@ -110,7 +103,7 @@
                 typeof obj;
         },
         isFunction: function(obj) {
-            return toString.call(obj) === "[object Function]";
+            return this.type(obj) === "function";
         },
 
         isWindow: function(obj) {
@@ -122,9 +115,6 @@
             return (type === "number" || type === "string") &&
                 !isNaN(obj - parseFloat(obj));
         },
-        /**
-         * @param obj [object] 对象, 是否是原生的对象
-         */
         isPlainObject: function(obj) {
             var proto, Ctor;
             if (!obj || toString.call(obj) !== "[object Object]") {
@@ -148,14 +138,6 @@
                 return false;
             }
             return true;
-        },
-        isAndroid: function(){
-            var u = navigator.userAgent;
-            return u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
-        },
-        isIOS: function(){
-            var u = navigator.userAgent;
-            return !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
         },
         merge: function(first, second) {
             var len = +second.length,
@@ -236,10 +218,7 @@
             }
             return fmt;
         },
-        /**
-         * @param key [string] 保存的对应的key
-         * @param value [string] 保存的value
-         */
+        // 存储数据
         setStorage: function(key, value) {
             var saveObj = window.localStorage._saveObj_;
             if (!saveObj) {
@@ -250,10 +229,7 @@
             saveObj[key] = value;
             window.localStorage._saveObj_ = JSON.stringify(saveObj);
         },
-        /**
-         * @param key [string] 获取存储的对应的key的value值
-         * @param def  [string] 默认值
-         */
+        // 获取某一个key, 可以传一个默认值
         getStorage: function(key, def) {
             var saveObj = window.localStorage._saveObj_
             if (!saveObj) {
@@ -263,9 +239,7 @@
             var ret = saveObj[key]
             return ret || def
         },
-        /**
-         * @param key [string] 从存储中移除某一个key
-         */
+        // 从存储中移除某一个key
         removeStorageItem: function(key) {
             var saveObj = window.localStorage._saveObj_;
             if (saveObj) {
@@ -287,7 +261,7 @@
             }
             return result[1];
         },
-        // 深拷贝 上面的extend也具有深拷贝的作用
+        // 深拷贝
         deepCopy: function(source, target) {
             var target = target || {};　　　　
             for (var i in source) {　　　　　　
@@ -305,6 +279,19 @@
         function(name, i) {
             class2type["[object " + name + "]"] = name.toLowerCase();
         });
+
+    var _checkObj = function(type) {
+        return function(obj) {
+            return Object.prototype.toString.call(obj) === '[object ' + type + ']'
+        }
+    }
+    var extend = function(Child, Parent) {
+        var F = function() {};　　　　
+        F.prototype = Parent.prototype;　　　　
+        Child.prototype = new F();　　　　
+        Child.prototype.constructor = Child;　　　　
+        Child.uber = Parent.prototype;
+    }
 
     //  是否是一个可迭代的类数组
     function isArrayLike(obj) {
@@ -349,252 +336,124 @@
             }
             return vendor + style.charAt(0).toUpperCase() + style.substr(1);
         }
-        // ajax模块
-    var ajax = (function() {
-        function ajax(options) {
-            var methods = ['get', 'post', 'put', 'delete']
-            options = options || {}
-            options.baseUrl = options.baseUrl || ''
-            if (options.method && options.url) {
-                return xhrConnection(
-                    options.method,
-                    options.baseUrl + options.url,
-                    maybeData(options.data),
-                    options
-                )
-            }
-            return methods.reduce(function(acc, method) {
-                acc[method] = function(url, data) {
-                    return xhrConnection(
-                        method,
-                        options.baseUrl + url,
-                        maybeData(data),
-                        options
-                    )
-                }
-                return acc
-            }, {})
+    // 交互部分
+    var ERR_OK = 0;
+ var callNative = function(options,isAsync){
+    summer.callService("SummerService.gotoNative", options, isAsync);
+ }
+ var _isAsync = function(options) {
+     var isAsync = false;
+     return options.isAsync?options.isAsync:isAsync
+ }
+ _.extend({
+     /**
+      * @param [*json] options: {quality: Number(0~1),isAsync: Boolean}
+      * @param [*function] success ,error
+      */
+    openAlbum: function(options,success,error){
+        var defaultQuality = 0.85;
+        if (_.isFunction(options)){
+            error = success
+            success = options
+            options = {}
         }
-
-        function maybeData(data) {
-            return data || null
+        var params = {
+            params: {
+                transtype: 'openalbum',
+                quality: options.quality?options.quality:defaultQuality
+            },
+            callback: success,
+            error: error
         }
-
-        function xhrConnection(type, url, data, options) {
-            var returnMethods = ['then', 'catch', 'always']
-            var promiseMethods = returnMethods.reduce(function(promise, method) {
-                promise[method] = function(callback) {
-                    promise[method] = callback
-                    return promise
-                }
-                return promise
-            }, {})
-            var xhr = new XMLHttpRequest()
-            var featuredUrl = getUrlWithData(url, data, type)
-            xhr.open(type, featuredUrl, true)
-            xhr.timeout = options.timeout || AJAX_TIME_OUT
-            xhr.withCredentials = options.hasOwnProperty('withCredentials')
-            setHeaders(xhr, options.headers)
-            xhr.addEventListener('readystatechange', ready(promiseMethods, xhr), false)
-            xhr.send(objectToQueryString(data))
-            promiseMethods.abort = function() {
-                return xhr.abort()
-            }
-            return promiseMethods
+        callNative(params, _isAsync(options))
+    },
+    openCamara: function(options,success,error){
+        var defaultQuality = 0.85;
+        if (_.isFunction(options)){
+            error = success
+            success = options
+            options = {}
         }
-
-        function getUrlWithData(url, data, type) {
-            if (type.toLowerCase() !== 'get' || !data) {
-                return url
-            }
-            var dataAsQueryString = objectToQueryString(data)
-            var queryStringSeparator = url.indexOf('?') > -1 ? '&' : '?'
-            return url + queryStringSeparator + dataAsQueryString
+        var params = {
+            params: {
+                transtype: 'takephote',
+                quality: options.quality?options.quality:defaultQuality
+            },
+            callback: success,
+            error: error
         }
-
-        function setHeaders(xhr, headers) {
-            headers = headers || {}
-            if (!hasContentType(headers)) {
-                headers['Content-Type'] = 'application/x-www-form-urlencoded'
-            }
-            Object.keys(headers).forEach(function(name) {
-                (headers[name] && xhr.setRequestHeader(name, headers[name]))
-            })
-        }
-
-        function hasContentType(headers) {
-            return Object.keys(headers).some(function(name) {
-                return name.toLowerCase() === 'content-type'
-            })
-        }
-
-        function ready(promiseMethods, xhr) {
-            return function handleReady() {
-                if (xhr.readyState === xhr.DONE) {
-                    xhr.removeEventListener('readystatechange', handleReady, false)
-                    promiseMethods.always.apply(promiseMethods, parseResponse(xhr))
-
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        promiseMethods.then.apply(promiseMethods, parseResponse(xhr))
-                    } else {
-                        promiseMethods.catch.apply(promiseMethods, parseResponse(xhr))
-                    }
-                }
-            }
-        }
-
-        function parseResponse(xhr) {
-            var result
-            try {
-                result = JSON.parse(xhr.responseText)
-            } catch (e) {
-                result = xhr.responseText
-            }
-            return [result, xhr]
-        }
-
-        function objectToQueryString(data) {
-            return isObject(data) ? getQueryString(data) : data
-        }
-
-        function isObject(data) {
-            return Object.prototype.toString.call(data) === '[object Object]'
-        }
-
-        function getQueryString(object) {
-            return Object.keys(object).reduce(function(acc, item) {
-                var prefix = !acc ? '' : acc + '&'
-                return prefix + encode(item) + '=' + encode(object[item])
-            }, '')
-        }
-
-        function encode(value) {
-            return encodeURIComponent(value)
-        }
-
-        return ajax
-    })()
-    // 和原生进行交互 
-    var setupWebViewJavascriptBridge = function(callback) {
-        if (_.isAndroid()) {
-            if (window.WebViewJavascriptBridge) {
-                callback(WebViewJavascriptBridge)
-            } else {
-                document.addEventListener(
-                    'WebViewJavascriptBridgeReady',
-                    function() {
-                        callback(WebViewJavascriptBridge)
-                    },
-                    false
-                );
-            }
-        } else {
-            if (window.WebViewJavascriptBridge) {
-                return callback(WebViewJavascriptBridge);
-            }
-            if (window.WVJBCallbacks) {
-                return window.WVJBCallbacks.push(callback);
-            }
-            window.WVJBCallbacks = [callback];
-            var WVJBIframe = document.createElement('iframe');
-            WVJBIframe.style.display = 'none';
-            WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
-            document.documentElement.appendChild(WVJBIframe);
-            setTimeout(function() {
-                document.documentElement.removeChild(WVJBIframe)
-            }, 0)
-        }
-    }
-    // 调取原生的方法
-var callNative = function(type, json, suc, err) {
-        setupWebViewJavascriptBridge(function(bridge) {
-            bridge.callHandler(
-                type, json,
-                function(responseData) {
-                    // @todo  根据原生返回的字段区分成功和失败,来调取相应的回调
-                    callback(responseData)
-                }
-            );
-        })
-    }
-    // 本地注册一个方法,让原生来调
-var registerListener = function(name, callback) {
-    setupWebViewJavascriptBridge(function(bridge) {
-        bridge.registerHandler(
-            name,
-            function(data) {
-                callback(data)
-            }
-        );
-    })
-}
-    /**
-     * 打开相机和相册
-     * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
-     * success: 成功的回调
-     * error: 失败的回调(超时也走这个逻辑)
-     */
-    _.registerListener = function(name,callback){
-        if (typeof(name) === 'string'&&_.isFunction(callback)) {
-            registerListener(name,callback)
-        }
-    }
-    _.each(['openAlbum', 'openCamara'], function(method, index) {
-            _[method] = function(options, success, error) {
-                var defaultQuality = 0.85,
-                    isCut = false,
-                    flag = false;
-                if (_.isFunction(options)) {
-                    error = success
-                    success = options
-                    options = {}
-                }
-                if (!options.quality) {
-                    options.quality = defaultQuality
-                }
-                if (!options.isSync) {
-                    options.isSync = flag
-                }
-                if(!options.isCut) {
-                    options.isCut = isCut
-                }
-                callNative(method, options,success, error)
-            }
-        })
-        /**
-         * 获取用户信息、获取当前的地理位置、通过原生调取MA,扫描二维码,退出app,监听物理返回键
-         * @param {*json} options 传的参数 
-         * @param {*function} callback 回调
-         * @param {*function} error 回调
-         */
-    _.each(['getUserInfo', 'callService', 'getGeolocation', 'dimension','exitApp','onWatchBackButton'], function(item, i) {
-            _[item] = function(options, success, error) {
-                if (_.isFunction(options)) {
-                    error = success
-                    success = options
-                    options = {}
-                }
-                callNative(item, options, success, error)
-            }
-        })
-    _.selectPeople = function(options, success, error) {
-        // 1.是否可以跨部门选人 isCrossDepts
-        // 2.同部门下选人上限（>=1） maxNumInSameDept
-        // 3.选人是否需要部门信息 needDeptInfo
-        // 4.给定特定的部门id(若特定部门id传错或者数据表中没有，那么规则？？登录用户的主部门id？)sepicalDept
-        // 5.给定已选的人员列表
-        var isCrossDepts = true, // 是否可以跨部门选人
-            chooseCaps = 1, // 同部门选人的上限
-            needDeptInfo = false, // 是否需要携带部门的信息
-            especialDept = ''; // 制定部门
+        callNative(params, _isAsync(options))
+    },
+    getUserInfo: function(options, success, error){
         if (_.isFunction(options)) {
             error = success
             success = options
             options = {}
         }
-        callNative('selectPeople', options, success, error)
-    }
- 
+        var params = {
+            params: {
+                transtype: 'request_token'
+            },
+            callback: success,
+            error: error
+        }
+        callNative(params, _isAsync(options))
+    },
+    callService: function(options, success, error){
+        var params = {
+            params: {
+                transtype: 'serviceCall',
+                controllerId: options.controller
+            },
+            callback: settings.callback,
+            error: settings.error
+        }
+        if (options.data) {
+            params.params.innerParams = settings.data
+        }
+        callNative(params, _isAsync(options))
+    }, 
+    dimension: function(options, success, error){
+        if (_.isFunction(options)) {
+            error = success
+            success = options
+            options = {}
+        }
+        var params = {
+            params: {
+                transtype: 'qrcodescan'
+            },
+            callback: success,
+            error: error
+        }
+        callNative(params, _isAsync(options))
+    },
+    exitApp: function(){
+        var u = navigator.userAgent,
+                app = navigator.appVersion;
+            var isAndroid = u.indexOf('Android') > -1 || u.indexOf('Linux') > -1;
+            var isIOS = !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
+            if (isAndroid) {
+                navigator.app.exitApp();
+            }
+            if (isIOS) {
+                var pamn = {
+                    "params": {
+                        "transtype": "exit_back"
+                    }
+                };
+                summer.callService("SummerService.gotoNative", pamn, false);
+            }
+    },
+    onWatchBackBtn: function(callback) {
+        document.addEventListener("deviceready", function() {
+            document.addEventListener("backbutton", function() {
+                callback() // 执行回调,
+            }, false);
+        }, false);
+    } 
+ })
+
     // 挂载到全局对象上
     window._ = _
     if (!noGlobal) {
