@@ -7,19 +7,15 @@
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
     <title>Document</title>
     <script src="js/myjs/config.js"></script>
-    <script src="js/myjs/ifbpmob.js"></script>
+    <script src="js/myjs/fetch.js"></script>
 </head>
 
 <body>
     <script>
-        ifbpm.callUrl({
+        fetch.callMA({
             url: 'http://ifbpmob.yonyou.com:8030/umserver/core',
             appid: 'library',
             action: 'handler',
-            timeout: 15000,
-            headers: {
-
-            },
             controller: 'com.ifbpmob.jrpt.controller.FileController',
             data: {
                 transtype: 'cataloglist',
