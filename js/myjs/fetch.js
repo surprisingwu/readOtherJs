@@ -496,6 +496,7 @@
                     "result": "result"
                 },
                 "params": params,
+                "header": header,
                 "actionname": action,
                 "callback": ""
             },
@@ -535,17 +536,48 @@
     function callMA(opts) {
         var requestParams = _setRequestParams(opts),
             url = opts.url,
-            headers = opts.headers || {}
+            headers = opts.headers
         var data = {
             tip: 'none',
             data: requestParams
         }
-        return fetch(url, {
+        var init = {
             method: 'post',
             body: JSON.stringify(data),
             headers: headers
-        })
+        }
+        if (headers) {
+            init.headers = headers
+        }
+        if (opts.timeout) {
+            return _fetch(fetch(url, init), opts.timeout)
+        }
+        return fetch(url, init)
     }
+
+    function _fetch(fetch_promise, timeout) {
+        var abort_fn = null;
+
+        //这是一个可以被reject的promise
+        var abort_promise = new Promise(function(resolve, reject) {
+            abort_fn = function() {
+                reject('abort promise');
+            };
+        });
+
+        //这里使用Promise.race，以最快 resolve 或 reject 的结果来传入后续绑定的回调
+        var abortable_promise = Promise.race([
+            fetch_promise,
+            abort_promise
+        ]);
+
+        setTimeout(function() {
+            abort_fn();
+        }, timeout);
+
+        return abortable_promise;
+    }
+
     self.fetch.callMA = callMA
     self.fetch.polyfill = true
 })(typeof self !== 'undefined' ? self : this);
