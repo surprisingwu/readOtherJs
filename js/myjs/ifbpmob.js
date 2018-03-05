@@ -38,13 +38,13 @@
     var VERSION = '0.0.1';
     _.version = VERSION
     _.prototype = {
-        constructor: _,
-        version: _.version,
-    }
-    /**
-     * @param [*boolean] 可传可不传,默认的false
-     * @param [*obj] 要添加的静态的方法(对象的形式)
-     */
+            constructor: _,
+            version: _.version,
+        }
+        /**
+         * @param [*boolean] 可传可不传,默认的false
+         * @param [*obj] 要添加的静态的方法(对象的形式)
+         */
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
             target = arguments[0] || {},
@@ -376,9 +376,9 @@
             xhr.addEventListener('readystatechange', ready(promiseMethods, xhr), false)
             xhr.send(objectToQueryString(data))
             promiseMethods.abort = function() {
-                return xhr.abort()
-            }
-            // @todo 有可能需要timeout事件和progress事件
+                    return xhr.abort()
+                }
+                // @todo 有可能需要timeout事件和progress事件
             return promiseMethods
         }
 
@@ -453,7 +453,7 @@
 
         return ajax
     })()
-    var setRequestParams = function(action, appid, params,controller) {
+    var setRequestParams = function(action, appid, params, controller) {
         var params = {
             "serviceid": "umCommonService",
             "appcontext": {
@@ -512,61 +512,61 @@
         };
         return params
     }
-    var handlerOptions = function(target,src) {
-        for (var k in target) {
-            if (!src[k]&&k!=='action'&&k!=='appid') {
-                src[k] = target[k]
+    var handlerOptions = function(target, src) {
+            for (var k in target) {
+                if (!src[k] && k !== 'action' && k !== 'appid') {
+                    src[k] = target[k]
+                }
             }
+            return src
         }
-        return src
-    }
-    /**
-     * 
-     * @param {object} options {data: obj,action: str,appid: str,timeout: num, headers: obj} 
-     * @param {function} suc 
-     * @param {function} err 
-     */
-   _.callUrl = function(options,suc,err) {
-    var action = options.action || 'handler',
-        appid = options.appid || 'test',
-        params = options.data || {};
+        /**
+         * 
+         * @param {object} options {data: obj,action: str,appid: str,timeout: num, headers: obj} 
+         * @param {function} suc 
+         * @param {function} err 
+         */
+    _.callUrl = function(options, suc, err) {
+        var action = options.action || 'handler',
+            appid = options.appid || 'test',
+            params = options.data || {};
         this.controller = options.controller
-    var requestParams = setRequestParams(action,appid,params,options.controller)
-    var data = {
-        tip: 'none',
-        data: JSON.stringify(requestParams)
+        var requestParams = setRequestParams(action, appid, params, options.controller)
+        var data = {
+            tip: 'none',
+            data: JSON.stringify(requestParams)
+        }
+        var ajaxOpts = {
+            method: 'post',
+            data: data
+        }
+        ajaxOpts = handlerOptions(options, ajaxOpts)
+        if (suc || err) {
+            ajax(ajaxOpts).then(function(data) {
+                if (suc) {
+                    suc(data)
+                }
+            }).catch(function(e) {
+                if (err) {
+                    err(e)
+                }
+            })
+            return
+        }
+        return new Promise(function(resolve, reject) {
+            ajax(ajaxOpts).then(function(data) {
+                resolve(data)
+            }).catch(function(e) {
+                reject(e)
+            })
+        })
+
     }
-    var ajaxOpts = {
-        method: 'post',
-        data: data
-    }
-    ajaxOpts = handlerOptions(options, ajaxOpts)
-    if (suc||err) {
-        ajax(ajaxOpts).then(function(data){
-              if (suc) {
-                   suc(data)
-              } 
-          }).catch(function(e){
-              if (err) {
-                   err(e)
-              }       
-          })
-          return
-    }
-    return new Promise(function(resolve,reject){
-        ajax(ajaxOpts).then(function(data){
-        resolve(data)
-      }).catch(function(e){
-        reject(e)
-      })
-    })
-    
-   }
 
     // 挂载到全局对象上
-    window.ifbpm=window._ = _
+    window.ifbpm = window._ = _
     if (!noGlobal) {
-        return window.ifbpm=window._ = _
+        return window.ifbpm = window._ = _
     }
     return ifbpm
 })

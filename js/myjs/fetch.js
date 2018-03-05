@@ -470,7 +470,7 @@
             appid = opts.appid || 'test',
             params = opts.data || {},
             controller = opts.controller,
-            header = opts.headers || {};
+            header = opts.headers;
         var params = {
             "serviceid": "umCommonService",
             "appcontext": {
@@ -496,7 +496,6 @@
                     "result": "result"
                 },
                 "params": params,
-                "header": header,
                 "actionname": action,
                 "callback": ""
             },
@@ -528,6 +527,9 @@
                 }
             }
         };
+        if (header) {
+            params.servicecontext.header = header
+        }
         return params
     }
     /**
@@ -535,19 +537,14 @@
      */
     function callMA(opts) {
         var requestParams = _setRequestParams(opts),
-            url = opts.url,
-            headers = opts.headers
+            url = opts.url
         var data = {
             tip: 'none',
             data: requestParams
         }
         var init = {
-            method: 'post',
-            body: JSON.stringify(data),
-            headers: headers
-        }
-        if (headers) {
-            init.headers = headers
+            method: 'POST',
+            body: JSON.stringify(data)
         }
         if (opts.timeout) {
             return _fetch(fetch(url, init), opts.timeout)
