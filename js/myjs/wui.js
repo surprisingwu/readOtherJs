@@ -24,27 +24,26 @@
     var hasOwn = class2type.hasOwnProperty;
     var fnToString = hasOwn.toString;
     var ObjectFunctionString = fnToString.call(Object);
-    var AJAX_TIME_OUT = 20000; // 单位毫秒
+
 
     // 直接使用_,可以使用一些工具类的方法,传参时,可以使用一些组件
     var _ = function(obj) {
         // @todo 待修改
         if (obj instanceof _) return obj;
         if (!(this instanceof _)) return new _(obj);
-        this._wrapped = obj;
     };
 
     // Current version.
     var VERSION = '0.0.1';
     _.version = VERSION
     _.prototype = {
-        constructor: _,
-        version: _.version,
-    }
-    /**对外扩展方法
-     * @param [boolean] 布尔值,默认的false, 浅复制
-     * @param [obj] 对象
-     */
+            constructor: _,
+            version: _.version,
+        }
+        /**对外扩展方法
+         * @param [boolean] 布尔值,默认的false, 浅复制
+         * @param [obj] 对象
+         */
     _.extend = function() {
         var options, name, src, copy, copyIsArray, clone,
             target = arguments[0] || {},
@@ -149,11 +148,11 @@
             }
             return true;
         },
-        isAndroid: function(){
+        isAndroid: function() {
             var u = navigator.userAgent;
             return u.indexOf('Android') > -1 || u.indexOf('Adr') > -1;
         },
-        isIOS: function(){
+        isIOS: function() {
             var u = navigator.userAgent;
             return !!u.match(/\(i[^;]+;( U;)? CPU.+Mac OS X/);
         },
@@ -351,192 +350,192 @@
         }
         // ajax模块
     var ajax = (function() {
-        function ajax(options) {
-            var methods = ['get', 'post', 'put', 'delete']
-            options = options || {}
-            options.baseUrl = options.baseUrl || ''
-            if (options.method && options.url) {
-                return xhrConnection(
-                    options.method,
-                    options.baseUrl + options.url,
-                    maybeData(options.data),
-                    options
-                )
-            }
-            return methods.reduce(function(acc, method) {
-                acc[method] = function(url, data) {
+            function ajax(options) {
+                var methods = ['get', 'post', 'put', 'delete']
+                options = options || {}
+                options.baseUrl = options.baseUrl || ''
+                if (options.method && options.url) {
                     return xhrConnection(
-                        method,
-                        options.baseUrl + url,
-                        maybeData(data),
+                        options.method,
+                        options.baseUrl + options.url,
+                        maybeData(options.data),
                         options
                     )
                 }
-                return acc
-            }, {})
-        }
+                return methods.reduce(function(acc, method) {
+                    acc[method] = function(url, data) {
+                        return xhrConnection(
+                            method,
+                            options.baseUrl + url,
+                            maybeData(data),
+                            options
+                        )
+                    }
+                    return acc
+                }, {})
+            }
 
-        function maybeData(data) {
-            return data || null
-        }
+            function maybeData(data) {
+                return data || null
+            }
 
-        function xhrConnection(type, url, data, options) {
-            var returnMethods = ['then', 'catch', 'always']
-            var promiseMethods = returnMethods.reduce(function(promise, method) {
-                promise[method] = function(callback) {
-                    promise[method] = callback
+            function xhrConnection(type, url, data, options) {
+                var returnMethods = ['then', 'catch', 'always']
+                var promiseMethods = returnMethods.reduce(function(promise, method) {
+                    promise[method] = function(callback) {
+                        promise[method] = callback
+                        return promise
+                    }
                     return promise
+                }, {})
+                var xhr = new XMLHttpRequest()
+                var featuredUrl = getUrlWithData(url, data, type)
+                xhr.open(type, featuredUrl, true)
+                xhr.timeout = options.timeout || AJAX_TIME_OUT
+                xhr.withCredentials = options.hasOwnProperty('withCredentials')
+                setHeaders(xhr, options.headers)
+                xhr.addEventListener('readystatechange', ready(promiseMethods, xhr), false)
+                xhr.send(objectToQueryString(data))
+                promiseMethods.abort = function() {
+                    return xhr.abort()
                 }
-                return promise
-            }, {})
-            var xhr = new XMLHttpRequest()
-            var featuredUrl = getUrlWithData(url, data, type)
-            xhr.open(type, featuredUrl, true)
-            xhr.timeout = options.timeout || AJAX_TIME_OUT
-            xhr.withCredentials = options.hasOwnProperty('withCredentials')
-            setHeaders(xhr, options.headers)
-            xhr.addEventListener('readystatechange', ready(promiseMethods, xhr), false)
-            xhr.send(objectToQueryString(data))
-            promiseMethods.abort = function() {
-                return xhr.abort()
+                return promiseMethods
             }
-            return promiseMethods
-        }
 
-        function getUrlWithData(url, data, type) {
-            if (type.toLowerCase() !== 'get' || !data) {
-                return url
+            function getUrlWithData(url, data, type) {
+                if (type.toLowerCase() !== 'get' || !data) {
+                    return url
+                }
+                var dataAsQueryString = objectToQueryString(data)
+                var queryStringSeparator = url.indexOf('?') > -1 ? '&' : '?'
+                return url + queryStringSeparator + dataAsQueryString
             }
-            var dataAsQueryString = objectToQueryString(data)
-            var queryStringSeparator = url.indexOf('?') > -1 ? '&' : '?'
-            return url + queryStringSeparator + dataAsQueryString
-        }
 
-        function setHeaders(xhr, headers) {
-            headers = headers || {}
-            if (!hasContentType(headers)) {
-                headers['Content-Type'] = 'application/x-www-form-urlencoded'
+            function setHeaders(xhr, headers) {
+                headers = headers || {}
+                if (!hasContentType(headers)) {
+                    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+                }
+                Object.keys(headers).forEach(function(name) {
+                    (headers[name] && xhr.setRequestHeader(name, headers[name]))
+                })
             }
-            Object.keys(headers).forEach(function(name) {
-                (headers[name] && xhr.setRequestHeader(name, headers[name]))
-            })
-        }
 
-        function hasContentType(headers) {
-            return Object.keys(headers).some(function(name) {
-                return name.toLowerCase() === 'content-type'
-            })
-        }
+            function hasContentType(headers) {
+                return Object.keys(headers).some(function(name) {
+                    return name.toLowerCase() === 'content-type'
+                })
+            }
 
-        function ready(promiseMethods, xhr) {
-            return function handleReady() {
-                if (xhr.readyState === xhr.DONE) {
-                    xhr.removeEventListener('readystatechange', handleReady, false)
-                    promiseMethods.always.apply(promiseMethods, parseResponse(xhr))
+            function ready(promiseMethods, xhr) {
+                return function handleReady() {
+                    if (xhr.readyState === xhr.DONE) {
+                        xhr.removeEventListener('readystatechange', handleReady, false)
+                        promiseMethods.always.apply(promiseMethods, parseResponse(xhr))
 
-                    if (xhr.status >= 200 && xhr.status < 300) {
-                        promiseMethods.then.apply(promiseMethods, parseResponse(xhr))
-                    } else {
-                        promiseMethods.catch.apply(promiseMethods, parseResponse(xhr))
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                            promiseMethods.then.apply(promiseMethods, parseResponse(xhr))
+                        } else {
+                            promiseMethods.catch.apply(promiseMethods, parseResponse(xhr))
+                        }
                     }
                 }
             }
-        }
 
-        function parseResponse(xhr) {
-            var result
-            try {
-                result = JSON.parse(xhr.responseText)
-            } catch (e) {
-                result = xhr.responseText
-            }
-            return [result, xhr]
-        }
-
-        function objectToQueryString(data) {
-            return isObject(data) ? getQueryString(data) : data
-        }
-
-        function isObject(data) {
-            return Object.prototype.toString.call(data) === '[object Object]'
-        }
-
-        function getQueryString(object) {
-            return Object.keys(object).reduce(function(acc, item) {
-                var prefix = !acc ? '' : acc + '&'
-                return prefix + encode(item) + '=' + encode(object[item])
-            }, '')
-        }
-
-        function encode(value) {
-            return encodeURIComponent(value)
-        }
-
-        return ajax
-    })()
-    // 和原生进行交互 
-    var setupWebViewJavascriptBridge = function(callback) {
-        if (_.isAndroid()) {
-            if (window.WebViewJavascriptBridge) {
-                callback(WebViewJavascriptBridge)
-            } else {
-                document.addEventListener(
-                    'WebViewJavascriptBridgeReady',
-                    function() {
-                        callback(WebViewJavascriptBridge)
-                    },
-                    false
-                );
-            }
-        } else {
-            if (window.WebViewJavascriptBridge) {
-                return callback(WebViewJavascriptBridge);
-            }
-            if (window.WVJBCallbacks) {
-                return window.WVJBCallbacks.push(callback);
-            }
-            window.WVJBCallbacks = [callback];
-            var WVJBIframe = document.createElement('iframe');
-            WVJBIframe.style.display = 'none';
-            WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
-            document.documentElement.appendChild(WVJBIframe);
-            setTimeout(function() {
-                document.documentElement.removeChild(WVJBIframe)
-            }, 0)
-        }
-    }
-    // 调取原生的方法
-var callNative = function(type, json, suc, err) {
-        setupWebViewJavascriptBridge(function(bridge) {
-            bridge.callHandler(
-                type, json,
-                function(responseData) {
-                    // @todo  根据原生返回的字段区分成功和失败,来调取相应的回调
-                    callback(responseData)
+            function parseResponse(xhr) {
+                var result
+                try {
+                    result = JSON.parse(xhr.responseText)
+                } catch (e) {
+                    result = xhr.responseText
                 }
-            );
-        })
-    }
-    // 本地注册一个方法,让原生来调
-var registerListener = function(name, callback) {
-    setupWebViewJavascriptBridge(function(bridge) {
-        bridge.registerHandler(
-            name,
-            function(data) {
-                callback(data)
+                return [result, xhr]
             }
-        );
-    })
-}
-    /**
-     * 打开相机和相册
-     * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
-     * success: 成功的回调
-     * error: 失败的回调(超时也走这个逻辑)
-     */
-    _.registerListener = function(name,callback){
-        if (typeof(name) === 'string'&&_.isFunction(callback)) {
-            registerListener(name,callback)
+
+            function objectToQueryString(data) {
+                return isObject(data) ? getQueryString(data) : data
+            }
+
+            function isObject(data) {
+                return Object.prototype.toString.call(data) === '[object Object]'
+            }
+
+            function getQueryString(object) {
+                return Object.keys(object).reduce(function(acc, item) {
+                    var prefix = !acc ? '' : acc + '&'
+                    return prefix + encode(item) + '=' + encode(object[item])
+                }, '')
+            }
+
+            function encode(value) {
+                return encodeURIComponent(value)
+            }
+
+            return ajax
+        })()
+        // 和原生进行交互 
+    var setupWebViewJavascriptBridge = function(callback) {
+            if (_.isAndroid()) {
+                if (window.WebViewJavascriptBridge) {
+                    callback(WebViewJavascriptBridge)
+                } else {
+                    document.addEventListener(
+                        'WebViewJavascriptBridgeReady',
+                        function() {
+                            callback(WebViewJavascriptBridge)
+                        },
+                        false
+                    );
+                }
+            } else {
+                if (window.WebViewJavascriptBridge) {
+                    return callback(WebViewJavascriptBridge);
+                }
+                if (window.WVJBCallbacks) {
+                    return window.WVJBCallbacks.push(callback);
+                }
+                window.WVJBCallbacks = [callback];
+                var WVJBIframe = document.createElement('iframe');
+                WVJBIframe.style.display = 'none';
+                WVJBIframe.src = 'wvjbscheme://__BRIDGE_LOADED__';
+                document.documentElement.appendChild(WVJBIframe);
+                setTimeout(function() {
+                    document.documentElement.removeChild(WVJBIframe)
+                }, 0)
+            }
+        }
+        // 调取原生的方法
+    var callNative = function(type, json, suc, err) {
+            setupWebViewJavascriptBridge(function(bridge) {
+                bridge.callHandler(
+                    type, json,
+                    function(responseData) {
+                        // @todo  根据原生返回的字段区分成功和失败,来调取相应的回调
+                        callback(responseData)
+                    }
+                );
+            })
+        }
+        // 本地注册一个方法,让原生来调
+    var registerListener = function(name, callback) {
+            setupWebViewJavascriptBridge(function(bridge) {
+                bridge.registerHandler(
+                    name,
+                    function(data) {
+                        callback(data)
+                    }
+                );
+            })
+        }
+        /**
+         * 打开相机和相册
+         * @param options: {quality: Number,maxWidth:Number,maxHeight:Number,isSync:Boolean}
+         * success: 成功的回调
+         * error: 失败的回调(超时也走这个逻辑)
+         */
+    _.registerListener = function(name, callback) {
+        if (typeof(name) === 'string' && _.isFunction(callback)) {
+            registerListener(name, callback)
         }
     }
     _.each(['openAlbum', 'openCamara'], function(method, index) {
@@ -555,10 +554,10 @@ var registerListener = function(name, callback) {
                 if (!options.isSync) {
                     options.isSync = flag
                 }
-                if(!options.isCut) {
+                if (!options.isCut) {
                     options.isCut = isCut
                 }
-                callNative(method, options,success, error)
+                callNative(method, options, success, error)
             }
         })
         /**
@@ -567,16 +566,16 @@ var registerListener = function(name, callback) {
          * @param {*function} callback 回调
          * @param {*function} error 回调
          */
-    _.each(['getUserInfo', 'callService', 'getGeolocation', 'dimension','exitApp','onWatchBackButton'], function(item, i) {
-            _[item] = function(options, success, error) {
-                if (_.isFunction(options)) {
-                    error = success
-                    success = options
-                    options = {}
-                }
-                callNative(item, options, success, error)
+    _.each(['getUserInfo', 'callService', 'getGeolocation', 'dimension', 'exitApp', 'onWatchBackButton'], function(item, i) {
+        _[item] = function(options, success, error) {
+            if (_.isFunction(options)) {
+                error = success
+                success = options
+                options = {}
             }
-        })
+            callNative(item, options, success, error)
+        }
+    })
     _.selectPeople = function(options, success, error) {
         // 1.是否可以跨部门选人 isCrossDepts
         // 2.同部门下选人上限（>=1） maxNumInSameDept
@@ -594,7 +593,7 @@ var registerListener = function(name, callback) {
         }
         callNative('selectPeople', options, success, error)
     }
- 
+
     // 挂载到全局对象上
     window._ = _
     if (!noGlobal) {

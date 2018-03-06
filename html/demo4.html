@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+
+<body>
+    <script>
+        // 求一个字符串中出现次数最多的字符
+        function index(str) {
+            var json = {};　　　
+            for (var j = 0; j < str.length; j++) {
+                if (!json[str.charAt(j)]) {
+                    json[str.charAt(j)] = 1;
+                } else {
+                    json[str.charAt(j)]++;
+                }
+            };
+            var iMax = 0;
+            var iIndex = "";
+            for (var i in json) {
+                if (json[i] > iMax) {
+                    iMax = json[i];
+                    iIndex = i
+                }
+            }
+        }
+        // 冒泡排序
+        function bubbleSort(arr) {
+            for (let i = 0, l = arr.length; i < l - 1; i++) {
+                for (let j = i + 1; j < l; j++) {
+                    if (arr[i] < arr[j]) {
+                        let tem = arr[i];
+                        arr[i] = arr[j];
+                        arr[j] = tem;
+                    }
+                }
+            }
+            return arr;
+        }
+
+        // 生成不重复的随机数
+        function roa(arr) {
+            let temp = new Array();　
+            let count = arr.length;
+            for (i = 0; i < count; i++) {
+                let num = Math.floor(Math.random() * arr.length);
+                temp.push(arr[num]);
+                arr.splice(num, 1);
+            }
+            return temp;
+        }
+        let arr = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+        console.log(roa(arr))
+    </script>
+</body>
+
+</html>
