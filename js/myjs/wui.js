@@ -190,6 +190,16 @@
                 return slice.call(obj)
             }
         },
+        randomArr: function(arr) {
+            var temp = new Array();　
+            var count = arr.length;
+            for (i = 0; i < count; i++) {
+                let num = Math.floor(Math.random() * arr.length);
+                temp.push(arr[num]);
+                arr.splice(num, 1);
+            }
+            return temp;
+        },
         // 遍历可迭代对象(数组,伪数组,set,map)
         each: function(obj, callback) {
             var length, i = 0;
